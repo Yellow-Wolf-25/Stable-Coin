@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
  * @title Stablecoin
  * @dev Yellow Wolf
  * @notice A simple ETH-collateralized stablecoin protocol. Users deposit ETH to mint stablecoins, redeem tokens for ETH, and liquidate undercollateralized positions. Uses Chainlink price feeds for ETH/USD.
- * @dev Not ERC20-compliant. For demonstration/educational use only. Not production-ready.
+ * @dev Not ERC20-compliant. For demonstration/educational use only. Not production-ready
  */
 interface AggregatorV3Interface {
     /**
@@ -79,10 +79,16 @@ contract Stablecoin {
         return uint256(price);
     }
 
+    modifier MinVal(uint256 amount) {
+        uint256 Min = 1e8 / _getEthUsdPrice(); //So that the value sent is always greater than $1
+        require(amount > Min, " Value Must be greater than $1");
+        _;
+    }
+
     /**
      * @notice Mint stablecoin: deposit ETH, mint tokens.
      */
-    function BUY() external payable {
+    function BUY() external payable MinVal(msg.value) { 
         require(msg.value > 0, "No ETH sent");
         uint256 ethUsd = (msg.value * _getEthUsdPrice()) / 1e8;
         uint256 mintable = (ethUsd * COLLATERAL_DENOM) / COLLATERAL_RATIO;
@@ -99,7 +105,7 @@ contract Stablecoin {
     /**
      * @notice Redeem: burn tokens, withdraw ETH if healthy.
      */
-    function SELL(uint256 tokenAmount) external {
+    function SELL(uint256 tokenAmount) external MinVal(tokenAmount) {
         require(balanceOf[msg.sender] >= tokenAmount, "Not enough tokens");
         require(mintedTokens[msg.sender] >= tokenAmount, "Not enough minted");
         uint256 ethToReturn = _getEthForTokens(tokenAmount);
@@ -157,7 +163,7 @@ contract Stablecoin {
      * @notice Helper: How much ETH is needed per token.
      */
     function _getEthForTokens(uint256 tokenAmount) internal view returns (uint256) {
-        uint256 ethUsd = (tokenAmount * COLLATERAL_RATIO) / COLLATERAL_DENOM; // $1.25 per token
+        uint256 ethUsd = (tokenAmount * 100) / COLLATERAL_DENOM; // $1 per token
         // Convert $ to ETH
         uint256 price = _getEthUsdPrice();
         return (ethUsd * 1e8) / price;
@@ -166,5 +172,6 @@ contract Stablecoin {
     /**
      * @notice Fallback: reverts to force use of BUY().
      */
+     
     receive() external payable { revert("Use BUY()"); }
 }
